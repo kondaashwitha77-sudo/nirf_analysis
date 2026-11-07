@@ -11,3 +11,15 @@ class NarrateRequest(BaseModel):
 
 class NarrateResponse(BaseModel):
     answer: str
+
+
+class PlanRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=600)
+    categories: list[str] = Field(default_factory=list, max_length=60)
+    states: list[str] = Field(default_factory=list, max_length=60)
+    years: list[int] = Field(default_factory=list, max_length=20)
+    previous_plan: dict | None = None
+
+
+class PlanResponse(BaseModel):
+    plan: dict

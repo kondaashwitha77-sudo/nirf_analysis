@@ -177,6 +177,8 @@ export interface MockSpec {
 }
 
 export interface AnalysisPlan {
+  /** the AI model's last JSON plan, kept so follow-ups like "what about 2023?" work */
+  llm?: unknown
   kind: 'compare' | 'institution' | 'stateCount' | 'trend' | 'outliers' | 'movers' | 'histogram' | 'corr' | 'topList'
     | 'lookup' | 'count' | 'aggregate' | 'consistency' | 'categoryCompare' | 'groupCount'
   /** the dimension the question groups by: "which states…" */
@@ -244,6 +246,8 @@ export interface AIQueryResponse {
   assumptions?: string[]
   /** remembered by the page for follow-up questions */
   plan?: AnalysisPlan
+  /** result of the generic query engine / Annexure analyses (Plotly traces); rendered by AnnexResultView */
+  annex?: import('../annex/core').Res
 }
 
 export interface DataQualityReport {

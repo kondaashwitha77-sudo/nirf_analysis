@@ -7,12 +7,14 @@ import type {
   VisualizationResult,
 } from '../types'
 import { answerQuestion } from '../data/mock/ai'
+import { AiUnavailable, answerWithLLM } from '../lib/llmAnalyst'
+import { classifyIntent } from '../lib/assistantIntent'
 import { YEARS } from '../data/mock/constants'
 import { runAnalysis } from '../data/mock/mockAnalysis'
 import { buildDataQualityReport } from '../data/mock/quality'
 import { QUESTIONS } from '../data/mock/questions'
 import { runVisualizationQuery } from '../data/mock/vizEngine'
-import { USE_MOCK, apiClient, mockDelay } from './apiClient'
+import { USE_MOCK, mockDelay } from './apiClient'
 
 /** Runs a structured visualization query against the loaded records. */
 export async function queryVisualization(query: VisualizationQuery): Promise<VisualizationResult> {
@@ -33,23 +35,23 @@ export function narrationIsSafe(narration: string, summary: string, rows: Record
  * loaded records; the backend (which holds the AI key) may then reword the computed answer.
  */
 export async function askAnalyst(question: string, previous?: AnalysisPlan): Promise<AIQueryResponse> {
-  const base = answerQuestion(question, previous)
-  if (USE_MOCK || base.kind !== 'analysis') return base
-  const rows = base.table?.rows.slice(0, 20) ?? []
-  try {
-    const { data } = await apiClient.post<{ answer: string }>('/ai/narrate', {
-      question: question.slice(0, 500),
-      summary: base.answer.slice(0, 2000),
-      columns: base.table?.columns.map((c) => c.key).slice(0, 20) ?? [],
-      rows,
-    })
-    return narrationIsSafe(data.answer, base.answer, rows) ? { ...base, answer: data.answer } : base
-  } catch (err) {
-    const code = (err as { response?: { data?: { error?: { code?: string } } } }).response?.data?.error?.code
-    return code === 'AI_NOT_CONFIGURED'
-      ? { ...base, limitations: [...base.limitations, 'AI wording is unavailable (set AI_API_KEY in the backend .env); showing the computed summary.'] }
-      : base
+  // Greetings, thanks and glossary terms need no model. Everything else goes to the model first.
+  const intent = classifyIntent(question)
+  const local = ['greeting', 'identity', 'thanks', 'glossary'].includes(intent)
+  if (!USE_MOCK && !local) {
+    try {
+      return await answerWithLLM(question, previous)
+    } catch (err) {
+      const why = err instanceof AiUnavailable ? err.message : 'AI_ERROR'
+      console.warn('[AI Analyst] Fell back to the rule-based analyst:', err instanceof Error ? err.message : String(err))
+      const fallback = answerQuestion(question, previous)
+      const notice = why === 'AI_NOT_CONFIGURED'
+        ? 'The AI model is not configured (set AI_API_KEY in backend/.env), so the built-in rule-based analyst answered.'
+        : 'The AI model could not be used for this question, so the built-in rule-based analyst answered.'
+      return { ...fallback, limitations: [...fallback.limitations, notice] }
+    }
   }
+  return answerQuestion(question, previous)
 }
 
 /** Runs one Annexure A question on the loaded records. */

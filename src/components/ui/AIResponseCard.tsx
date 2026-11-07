@@ -5,6 +5,7 @@ import { SectionCard } from './SectionCard'
 import { StatusBadge } from './StatusBadge'
 
 // Charts load only when an answer needs them; chat replies never pull in the chart library.
+const AnnexResultView = lazy(() => import('./AnnexResultView').then((m) => ({ default: m.AnnexResultView })))
 const AnalysisView = lazy(() => import('./AnalysisView').then((m) => ({ default: m.AnalysisView })))
 
 const chip = 'rounded-full border border-line bg-white px-3 py-1.5 text-left text-xs font-medium text-ink transition hover:border-accent hover:bg-teal-50 hover:text-deep'
@@ -56,6 +57,18 @@ export function AIResponseCard({ response, onAsk }: { response: AIQueryResponse;
           </div>
         </div>
       </SectionCard>
+
+      {r.annex && (
+        <Suspense fallback={<div className="h-60 animate-pulse rounded-card bg-slate-100" aria-label="Loading charts" />}>
+          <AnnexResultView res={r.annex} fileName="nirf-ai-answer.csv" />
+          {(r.methodology || r.limitations.length > 0) && (
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              {r.methodology && <SectionCard title="Methodology"><p className="text-sm leading-relaxed text-ink">{r.methodology}</p></SectionCard>}
+              {r.limitations.length > 0 && <SectionCard title="Data limitations"><ul className="list-disc space-y-1.5 pl-4 text-sm leading-relaxed text-ink">{r.limitations.map((l) => <li key={l}>{l}</li>)}</ul></SectionCard>}
+            </div>
+          )}
+        </Suspense>
+      )}
 
       {(r.charts.length > 0 || !!r.table?.rows.length) && (
         <Suspense fallback={<div className="h-60 animate-pulse rounded-card bg-slate-100" aria-label="Loading charts" />}>

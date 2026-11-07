@@ -34,6 +34,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             settings.environment,
             safe_url(settings.database_url),
         )
+        # Only whether a key is set, never the key itself.
+        ai_key = settings.ai_api_key.get_secret_value().strip() if settings.ai_api_key else ""
+        logger.info(
+            "AI planner | key configured: %s | base URL: %s | model: %s",
+            bool(ai_key),
+            settings.ai_base_url,
+            settings.ai_model,
+        )
         # Report connectivity at startup, but stay up: /api/health shows the live state.
         try:
             with app.state.session_factory() as session:
